@@ -1,5 +1,5 @@
 // server.js (formerly index.js)
-
+require("dotenv").config();
 const express = require("express");
 const path = require("path");
 const mongoose = require("mongoose");
@@ -15,6 +15,7 @@ const admin = require("./firebase"); // at the top
 
 
 const app = express();
+
 const PORT = process.env.PORT || 5000;
 
 const PopupContent = require('./models/PopupContent');
