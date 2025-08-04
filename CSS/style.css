@@ -1,0 +1,226 @@
+@import url("https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap");
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Poppins", sans-serif;
+}
+
+/* Optional improvements */
+body {
+  background: linear-gradient(145deg, #0470fd, #032a79,  #0470fd,#01256e);
+  color: #fff;
+  padding: 20px;
+  max-width: 100%;
+}
+
+#sign-up, #log-in{
+  margin-top: -60px;
+}
+
+#log-in{
+  margin-top: -90px;
+}
+
+/* Dashboard Styles */
+#Dashboard {
+  border: 3px solid white;
+  border-radius: 10px;
+  margin-top: 80px;
+  height: 100%;
+  padding: 15px;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+/* Responsive Grid Layout */
+#Dashboard2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  border-radius: 10px;
+  margin-top: 40px;
+  height: auto;
+  box-shadow: 3px 3px 3px 3px rgba(236, 224, 224, 0.4);
+  padding: 10px;
+}
+
+/* Tasks Dashboard */
+#Dashboard3 {
+  border: 1px solid white;
+  border-radius: 10px;
+  margin-top: 40px;
+  height: auto;
+  padding: 15px;
+  
+}
+
+/* Optional: Make profile picture round and consistent */
+img.rounded-circle {
+  max-width: 100px;
+  height: auto;
+}
+
+
+#Dashboard4 {
+  border: 1px solid white;
+  border-radius: 10px;
+  padding: 15px;
+  display: flex;
+  justify-content: space-around; /* space items evenly */
+  width: 100%;
+
+  position: fixed;
+  bottom: 0;        /* fix to bottom */
+  left: 0;          /* align left */
+  background-color: #0543c0;
+  z-index: 1000;    /* above other content */
+  margin-bottom: 1px;
+
+  /* Optional: add some padding so it doesn't touch edges */
+  box-sizing: border-box;
+}
+
+#task_center{
+  margin-top: 20px;
+}
+
+#task_body{
+  border: 3px solid white ;
+  margin-top: 60px;
+  height: 150%;
+  border-radius: 20px;
+  padding: 8px;
+}
+
+.float{
+  border: 3px solid gold;
+  border-radius: 20px;
+  padding: 3px;
+  background-color: gold;
+  color: black;
+  font-weight: bold;
+  border-bottom-left-radius: 0px;
+}
+
+.float1{
+  border-bottom-left-radius: 20px ;
+  outline: 3px solid white;
+  border: 3px solid ;
+  padding: 8px;
+
+}
+
+#join_live{
+  border: 3px solid white ;
+  margin-top: 60px;
+  height: 150%;
+  border-radius: 20px;
+  padding: 8px;
+}
+
+#other{
+  margin-top: 20px;
+}
+
+#profile{
+  border: 0.1px solid;
+  height: 80px;
+  border-radius: 20px;
+  box-shadow: 5px 5px 5px black;
+
+}
+
+.text-gold {
+  color: gold;
+}
+
+#profile_details{
+  border: 0.1px solid;
+  height: 300px;
+  border-radius: 20px;
+  box-shadow: 5px 5px 5px black;
+}
+
+#password_settings{
+  border: 0.1px solid;
+  height: 600px;
+  border-radius: 20px;
+  box-shadow: 5px 5px 5px black;
+}
+
+#Notification_settings{
+  border: 0.1px solid;
+  height: 500px;
+  border-radius: 20px;
+  box-shadow: 5px 5px 5px black;
+}
+
+#Help_Faq{
+  border: 0.1px solid;
+  height: 800px;
+  border-radius: 20px;
+  box-shadow: 5px 5px 5px black;
+}
+
+#About_project{
+  border: 0.1px solid;
+  height: 500px;
+  border-radius: 20px;
+  box-shadow: 5px 5px 5px black;
+}
+
+#Close_account{
+  border: 0.1px solid;
+  height: 500px;
+  border-radius: 20px;
+  box-shadow: 5px 5px 5px black;
+}
+
+#closed{
+  border: 0.1px solid;
+  height: 250px;
+  border-radius: 20px;
+  box-shadow: 5px 5px 5px black;
+}
+
+#profile_details{
+ display: none;
+}
+
+#password_settings{
+  display: none;
+}
+
+#Notification_settings{
+  display: none;
+}
+
+#About_project{
+  display: none;
+}
+
+#Help_Faq{
+  display: none;
+}
+
+#Close_account{
+  display: none;
+}
+
+#closed{
+  display: none;
+}
+
+.profile_row{
+  display: flex;
+}
+
+#settings,#settings2,#Dashboard4{
+  display: flex;
+}
+
+.float1 {
+  cursor: pointer;
+}

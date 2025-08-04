@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Admin Dashboard</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+        background: linear-gradient(145deg, #0470fd, #032a79, #0470fd, #01256e);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+      }
+      th,
+      td {
+        border: 1px solid #ccc;
+        padding: 8px;
+        text-align: left;
+      }
+      th {
+        background-color: #f0f0f0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1 class="text-white fw-bolder">Admin Dashboard</h1>
+
+    <div class="d-flex justify-content-between align-items-center">
+      <h2 class="text-white">Total Users: <span id="total-users">0</span></h2>
+      <button class="btn btn-warning" onclick="exportUserData()">
+        Export Users
+      </button>
+      <button class="btn btn-warning" onclick="exportKYCData()">
+        Export KYC
+      </button>
+    </div>
+
+    <canvas id="userChart" height="100"></canvas>
+
+    <input
+      type="text"
+      id="searchInput"
+      class="form-control mt-3"
+      placeholder="Search users by name or email..."
+    />
+
+    <table class="table table-striped mt-3">
+      <thead>
+        <tr>
+          <th>Full Name</th>
+          <th>Email</th>
+          <th>Balance</th>
+          <th>KYC Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="usersTableBody">
+        <!-- Users will be added here -->
+      </tbody>
+    </table>
+
+    <div class="container mt-5">
+      <h2 class="text-warning fw-bold">Pending KYC Submissions</h2>
+      <div id="kyc-list" class="mt-4"></div>
+    </div>
+
+    <!-- Admin Task Creation Form -->
+    <div class="container mt-5">
+      <div
+        class="p-4 rounded text-white"
+        style="
+          background: linear-gradient(135deg, #032a79, #0470fd, #01256e);
+          border: 2px solid white;
+        "
+      >
+        <h4 class="mb-4 text-center text-warning">Create New Task</h4>
+
+        <form
+          action="/admin/create-task"
+          method="POST"
+          enctype="multipart/form-data"
+        >
+          <div class="mb-3">
+            <label class="form-label">Task Title</label>
+            <input
+              type="text"
+              class="form-control"
+              name="title"
+              placeholder="Enter task title"
+              required
+            />
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Reward (₦)</label>
+            <input
+              type="number"
+              class="form-control"
+              name="reward"
+              placeholder="e.g. 50"
+              required
+            />
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Frequency</label>
+            <input
+              type="text"
+              class="form-control"
+              name="frequency"
+              placeholder="e.g. daily, once"
+            />
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Description</label>
+            <input
+              type="text"
+              class="form-control"
+              name="description"
+              placeholder="Enter task description"
+            />
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Task ID</label>
+            <input
+              type="text"
+              class="form-control"
+              name="taskId"
+              placeholder="Unique Task ID"
+              required
+            />
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Task Image (optional)</label>
+            <input
+              type="file"
+              class="form-control"
+              name="image"
+              accept="image/*"
+            />
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">URL</label>
+            <input
+              type="url"
+              name="link"
+              placeholder="Task Link (https://...)"
+              class="form-control my-2"
+              required
+            />
+          </div>
+
+          <div class="d-grid">
+            <button type="submit" class="btn btn-warning fw-bold">
+              Create Task
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Withdrawal control -->
+    <div class="form-check form-switch mt-4">
+      <input class="form-check-input" type="checkbox" id="withdrawToggle" />
+      <label class="form-check-label fw-bold" for="withdrawToggle"
+        >Enable Withdrawals</label
+      >
+    </div>
+
+    <!-- Section to Display Tasks -->
+    <div class="container mt-5">
+      <h4 class="text-warning mb-3">All Tasks</h4>
+      <div id="adminTasks" class="row g-4">
+        <!-- Tasks will be displayed here dynamically -->
+      </div>
+    </div>
+
+    <div class="container mt-5">
+      <h2 class="text-warning fw-bold mb-4">Pending Withdrawals</h2>
+      <div id="withdrawalsList" class="row g-4">
+        <!-- Withdrawals will be rendered here -->
+      </div>
+    </div>
+
+    <!-- Pop up cotroller -->
+    <h4>Edit Dashboard Popup</h4>
+    <form id="popupForm">
+      <input
+        class="form-control mb-2"
+        name="title"
+        placeholder="Popup Title"
+        required
+      />
+      <textarea
+        class="form-control mb-2"
+        name="message"
+        placeholder="Message"
+        required
+      ></textarea>
+      <input
+        class="form-control mb-2"
+        name="imageUrl"
+        placeholder="Image URL"
+        required
+      />
+      <input
+        class="form-control mb-2"
+        name="buttonText"
+        placeholder="Button Text"
+        required
+      />
+      <input
+        class="form-control mb-2"
+        name="buttonLink"
+        placeholder="Button Link URL"
+        required
+      />
+      <button class="btn btn-success">Save</button>
+    </form>
+
+    <script>
+      let allUsers = [];
+
+      function renderChart(totalUsers, approvedKYC, pendingKYC) {
+        const ctx = document.getElementById("userChart").getContext("2d");
+        new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels: ["Total Users", "KYC Approved", "KYC Pending"],
+            datasets: [
+              {
+                label: "User Stats",
+                data: [totalUsers, approvedKYC, pendingKYC],
+                backgroundColor: ["#007bff", "#28a745", "#ffc107"],
+              },
+            ],
+          },
+        });
+      }
+
+      function renderUserTable(users) {
+        const tableBody = document.getElementById("usersTableBody");
+        tableBody.innerHTML = "";
+        document.getElementById("total-users").textContent = users.length;
+
+        users.forEach((user) => {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+        <td>${user.fullname || "N/A"}</td>
+        <td>${user.email}</td>
+        <td>${user.balance || 0}</td>
+        <td>
+          <span class="badge ${
+            user.kycStatus === "approved"
+              ? "bg-success"
+              : "bg-warning text-dark"
+          }">
+            ${user.kycStatus === "approved" ? "Verified" : "Pending"}
+          </span>
+        </td>
+        <td><button class="btn btn-sm btn-danger" onclick="blockUser('${
+          user._id
+        }')">Block</button></td>
+      `;
+          tableBody.appendChild(row);
+        });
+      }
+
+      function fetchUsers() {
+        fetch("/admin/users", { credentials: "include" })
+          .then((res) => res.json())
+          .then((users) => {
+            allUsers = users;
+            renderUserTable(users);
+            const approved = users.filter(
+              (u) => u.kycStatus === "approved"
+            ).length;
+            const pending = users.filter(
+              (u) => u.kycStatus === "pending"
+            ).length;
+            renderChart(users.length, approved, pending);
+          })
+          .catch((err) => console.error(err));
+      }
+
+      document.getElementById("searchInput").addEventListener("input", (e) => {
+        const value = e.target.value.toLowerCase();
+        const filtered = allUsers.filter(
+          (u) =>
+            (u.fullname && u.fullname.toLowerCase().includes(value)) ||
+            (u.email && u.email.toLowerCase().includes(value))
+        );
+        renderUserTable(filtered);
+      });
+
+      function exportUserData() {
+        const csv = ["Full Name,Email,Balance,KYC Status"];
+        allUsers.forEach((user) => {
+          csv.push(
+            `"${user.fullname || ""}","${user.email}",${user.balance},${
+              user.kycStatus
+            }`
+          );
+        });
+        downloadCSV(csv.join("\n"), "users.csv");
+      }
+
+      function exportKYCData() {
+        fetch("/admin/kyc-submissions", { credentials: "include" })
+          .then((res) => res.json())
+          .then((data) => {
+            const csv = ["Full Name,Email,ID Type,ID Number,Submitted At"];
+            data.forEach((user) => {
+              csv.push(
+                `"${user.fullname}","${user.email}","${user.idType}","${user.idNumber}","${user.submittedAt}"`
+              );
+            });
+            downloadCSV(csv.join("\n"), "kyc_submissions.csv");
+          });
+      }
+
+      function downloadCSV(content, filename) {
+        const blob = new Blob([content], { type: "text/csv" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+
+      function blockUser(userId) {
+        if (!confirm("Are you sure you want to block this user?")) return;
+        fetch("/admin/block-user", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ userId }),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            alert(data.message);
+            fetchUsers();
+          })
+          .catch((err) => console.error("Block failed:", err));
+      }
+
+      function loadKYCSubmissions() {
+        fetch("/admin/kyc-submissions", { credentials: "include" })
+          .then((res) => res.json())
+          .then((data) => {
+            const container = document.getElementById("kyc-list");
+            container.innerHTML = "";
+            if (!data.length) {
+              container.innerHTML =
+                '<p class="text-muted">No pending KYC submissions.</p>';
+              return;
+            }
+            data.forEach((user) => {
+              const card = document.createElement("div");
+              card.className = "card mb-4 bg-secondary text-white";
+              card.innerHTML = `
+            <div class="card-body">
+              <h5 class="card-title">${user.fullname}</h5>
+              <p class="card-text">
+                <strong>Email:</strong> ${user.email}<br>
+                <strong>ID Type:</strong> ${user.idType}<br>
+                <strong>ID Number:</strong> ${user.idNumber}<br>
+                <strong>Submitted At:</strong> ${new Date(
+                  user.submittedAt
+                ).toLocaleString()}<br>
+              </p>
+              ${
+                user.idDocument
+                  ? `<a class="btn btn-warning btn-sm mb-2" href="${user.idDocument}" target="_blank">View ID Document</a><br>`
+                  : ""
+              }
+              <button class="btn btn-success btn-sm me-2" onclick="approveKYC('${
+                user.id
+              }')">Approve</button>
+              <button class="btn btn-danger btn-sm" onclick="blockUser('${
+                user.id
+              }')">Block</button>
+            </div>
+          `;
+              container.appendChild(card);
+            });
+          })
+          .catch((err) => {
+            document.getElementById("kyc-list").innerHTML =
+              '<p class="text-danger">Error loading submissions.</p>';
+          });
+      }
+
+      function approveKYC(userId) {
+        fetch("/admin/approve-kyc", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ userId }),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            alert(data.message);
+            loadKYCSubmissions();
+            fetchUsers();
+          })
+          .catch((err) => console.error("Approval failed:", err));
+      }
+
+      function loadWithdrawals() {
+        fetch("/admin/withdrawals", { credentials: "include" })
+          .then((res) => res.json())
+          .then((data) => {
+            const container = document.getElementById("withdrawalsList");
+            container.innerHTML = "";
+
+            if (!data.length) {
+              container.innerHTML =
+                "<p class='text-light'>No pending withdrawal requests.</p>";
+              return;
+            }
+
+            data.forEach((w) => {
+              const card = document.createElement("div");
+              card.className = "col-md-6 col-lg-4";
+              card.innerHTML = `
+            <div class="card bg-dark text-white h-100 shadow-sm">
+              <div class="card-body">
+                <h5 class="card-title">₦${w.amount.toFixed(2)}</h5>
+                <p>
+                  <strong>Bank:</strong> ${w.bank}<br/>
+                  <strong>Account No:</strong> ${w.accountNumber}<br/>
+                  <strong>Name:</strong> ${w.accountName}<br/>
+                  <strong>Date:</strong> ${new Date(
+                    w.createdAt
+                  ).toLocaleString()}<br/>
+                  <strong>Status:</strong> <span class="badge bg-warning text-dark">Pending</span>
+                </p>
+                <button class="btn btn-success btn-sm" onclick="approveWithdrawal('${
+                  w._id
+                }', ${w.amount}, '${w.userId}')">Approve</button>
+                <button class="btn btn-danger btn-sm ms-2" onclick="rejectWithdrawal('${
+                  w._id
+                }')">Reject</button>
+              </div>
+            </div>
+          `;
+              container.appendChild(card);
+            });
+          });
+      }
+
+      function approveWithdrawal(withdrawalId, amount, userId) {
+        if (!confirm("Approve this withdrawal?")) return;
+
+        fetch("/admin/approve-withdrawal", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ withdrawalId, amount, userId }),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            alert(data.message);
+            location.reload();
+          })
+          .catch((err) => {
+            alert("Error approving withdrawal");
+            console.error(err);
+          });
+      }
+
+      function rejectWithdrawal(withdrawalId) {
+        if (!confirm("Reject this withdrawal?")) return;
+
+        fetch("/admin/reject-withdrawal", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ withdrawalId }),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            alert(data.message);
+            location.reload();
+          })
+          .catch((err) => {
+            alert("Error rejecting withdrawal");
+            console.error(err);
+          });
+      }
+
+      function fetchAdminTasks() {
+        fetch("/tasks", { credentials: "include" })
+          .then((res) => res.json())
+          .then((tasks) => {
+            const container = document.getElementById("taskListAdmin");
+            container.innerHTML = "";
+
+            if (tasks.length === 0) {
+              container.innerHTML =
+                "<p class='text-light'>No tasks available.</p>";
+              return;
+            }
+
+            tasks.forEach((task) => {
+              const card = document.createElement("div");
+              card.className = "card mb-3 bg-secondary text-white";
+              card.innerHTML = `
+            <div class="card-body">
+              <h5>${task.title}</h5>
+              <p>Reward: ₦${task.reward}</p>
+              <p>Frequency: ${task.frequency || "N/A"}</p>
+              <p>Description: ${task.description || ""}</p>
+              <button class="btn btn-sm btn-danger" onclick="deleteTask('${
+                task._id
+              }')">Delete</button>
+            </div>
+          `;
+              container.appendChild(card);
+            });
+          })
+          .catch((err) => console.error("Error loading tasks:", err));
+      }
+
+      function deleteTask(taskId) {
+        if (!confirm("Are you sure you want to delete this task?")) return;
+
+        fetch(`/admin/delete-task/${taskId}`, {
+          method: "DELETE",
+          credentials: "include",
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            alert(data.message);
+            fetchAdminTasks();
+            loadTasks();
+          })
+          .catch((err) => console.error("Delete failed:", err));
+      }
+
+      function loadTasks() {
+        fetch("/tasks")
+          .then((res) => res.json())
+          .then((tasks) => {
+            const adminTasks = document.getElementById("adminTasks");
+            adminTasks.innerHTML = "";
+
+            if (tasks.length === 0) {
+              adminTasks.innerHTML =
+                "<p class='text-muted'>No tasks available.</p>";
+              return;
+            }
+
+            tasks.forEach((task) => {
+              const taskDiv = document.createElement("div");
+              taskDiv.className = "col-md-6 col-lg-4";
+              taskDiv.innerHTML = `
+            <div class="card shadow-sm h-100">
+              <div class="card-body">
+                <h5 class="card-title text-primary">${task.title}</h5>
+                <p><strong>Reward:</strong> ₦${task.reward}</p>
+                <p><strong>ID:</strong> ${task.taskId}</p>
+                <p><strong>Frequency:</strong> ${task.frequency || "N/A"}</p>
+                <p><strong>Description:</strong> ${task.description || ""}</p>
+                <p><strong>URL:</strong> <a href="${
+                  task.link
+                }" target="_blank">${task.link}</a></p>
+                ${
+                  task.image
+                    ? `<img src="${task.image}" class="img-fluid rounded mt-2" alt="Task Image">`
+                    : ""
+                }
+                <div class="mt-3">
+                  <button onclick="deleteTask('${
+                    task._id
+                  }')" class="btn btn-danger btn-sm">
+                    🗑 Delete Task
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+              adminTasks.appendChild(taskDiv);
+            });
+          })
+          .catch((err) => {
+            console.error("Error loading tasks:", err);
+            document.getElementById("adminTasks").innerHTML =
+              '<p class="text-danger">Failed to load tasks.</p>';
+          });
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        fetchUsers();
+        loadKYCSubmissions();
+        fetchAdminTasks();
+        loadTasks();
+        loadWithdrawals();
+
+        fetch("/admin/withdrawal-status", { credentials: "include" })
+          .then((res) => res.json())
+          .then((data) => {
+            document.getElementById("withdrawToggle").checked = data.enabled;
+          });
+
+        document
+          .getElementById("withdrawToggle")
+          .addEventListener("change", (e) => {
+            const enabled = e.target.checked;
+            fetch("/admin/withdrawal-status", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              credentials: "include",
+              body: JSON.stringify({ enabled }),
+            })
+              .then((res) => res.json())
+              .then((data) => {
+                alert(`Withdrawals ${data.enabled ? "enabled" : "disabled"}`);
+              });
+          });
+      });
+    </script>
+
+    <script>
+      document
+        .getElementById("createTaskForm")
+        .addEventListener("submit", function (e) {
+          e.preventDefault();
+          const formData = new FormData(this);
+          const taskData = {};
+          formData.forEach((val, key) => (taskData[key] = val));
+
+          fetch("/admin/create-task", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify(taskData),
+          })
+            .then((res) => res.json())
+            .then((data) => {
+              alert(data.message);
+              this.reset();
+            })
+            .catch((err) => alert("Error creating task"));
+        });
+    </script>
+
+    <script>
+      document
+        .getElementById("popupForm")
+        .addEventListener("submit", function (e) {
+          e.preventDefault();
+          const formData = new FormData(this);
+          const data = {};
+          formData.forEach((v, k) => (data[k] = v));
+
+          fetch("/admin/popup-content", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify(data),
+          })
+            .then((res) => res.json())
+            .then((data) => alert(data.message))
+            .catch((err) => alert("Failed to update popup."));
+        });
+    </script>
+  </body>
+</html>
