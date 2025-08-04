@@ -158,10 +158,10 @@ img.rounded-circle {
 }
 
 #Help_Faq{
-  border: 0.1px solid;
-  height: 3000px;
+  /* border: 0.1px solid;
+  height: 2200px;
   border-radius: 20px;
-  box-shadow: 5px 5px 5px black;
+  box-shadow: 5px 5px 5px black; */
 }
 
 #About_project{
