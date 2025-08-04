@@ -38,7 +38,8 @@ function fetchReferralData() {
 
       const referralInput = document.getElementById("copyInput");
       if (referralInput && data.referralCode) {
-        referralInput.value = `http://localhost:5000/signup/${data.referralCode}`;
+        referralInput.value = `https://rewards-0tfq.onrender.com/signup/${data.referralCode}`;
+
       }
 
       const referredList = document.getElementById("referred-users");
