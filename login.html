@@ -13,6 +13,8 @@
       integrity="sha384-4Q6Gf2aSP4eDXB8Miphtr37CMZZQ5oXLH2yaXMJ2w8e2ZtHTl7GptT4jmndRuHDT"
       crossorigin="anonymous"
     />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.0/css/all.min.css" integrity="sha512-DxV+EoADOkOygM4IR9yXP8Sb2qwgidEmeqAEmDKIOfPRQZOWbXCzLC6vjbZyy0vPisbH2SyW27+ddLVCN+OMzQ==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    
   </head>
 
   <body>
@@ -40,12 +42,21 @@
           </div>
 
           <button type="submit" class="btn btn-primary w-100 rounded-pill">Login</button>
-
+          <br><br>
+         
           <p class="text-center mt-3 mb-0">
             Don't have an account? 
-            <a href="/signup" class="text-decoration-none">Sign up</a>
+            <a href="/signup" class="text-decoration-none" style="white-space: nowrap;">Sign up</a>
           </p>
         </form>
+        <br>
+        <button
+          class="btn btn-light w-100 rounded-pill shadow-sm"
+          onclick="googleSignIn()" style="border: 1px solid rgb(11, 103, 223);"
+        >
+          <i class="fab fa-google"></i> Sign up with Google
+        </button>
+
       </div>
     </div>
 
@@ -54,6 +65,58 @@
       integrity="sha384-j1CDi7MgGQ12Z7Qab0qlWQ/Qqz24Gc6BM0thvEMVjHnfYGF0rmFCozFSxQBxwHKO"
       crossorigin="anonymous"
     ></script>
+    <!-- ✅ Firebase SDK and Google Sign-In logic -->
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
+      import {
+        getAuth,
+        GoogleAuthProvider,
+        signInWithPopup,
+      } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
+
+      const firebaseConfig = {
+        apiKey: "AIzaSyDXPsSpMXCfFVX4bTDLLoOg0nF3sW5Npq8",
+        authDomain: "rewards-a8015.firebaseapp.com",
+        projectId: "rewards-a8015",
+        storageBucket: "rewards-a8015.appspot.com",
+        messagingSenderId: "875435765792",
+        appId: "1:875435765792:web:1ab89eb783ae18510dcc45",
+        measurementId: "G-SG9GEBJGXN",
+      };
+
+      const app = initializeApp(firebaseConfig);
+      const auth = getAuth(app);
+      const provider = new GoogleAuthProvider();
+
+      // ✅ Expose function globally
+      window.googleSignIn = async function () {
+        try {
+          const result = await signInWithPopup(auth, provider);
+          const user = result.user;
+          const idToken = await user.getIdToken();
+
+          // ✅ Send token to backend for verification
+          const response = await fetch("/google-auth", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            credentials: "include",
+            body: JSON.stringify({ idToken }),
+          });
+
+          const data = await response.json();
+          if (data && data.user) {
+            window.location.href = "/dashboard";
+          } else {
+            alert("Login failed. Try again.");
+          }
+        } catch (error) {
+          console.error("Google Sign-In Error:", error);
+          alert("Sign-in failed. Try again.");
+        }
+      };
+    </script>
     <script src="./JAVASCRIPT/index.js"></script>
   </body>
 </html>

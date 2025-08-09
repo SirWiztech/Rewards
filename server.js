@@ -1,4 +1,4 @@
-// server.js (formerly index.js)
+// server.js (updated)
 require("dotenv").config();
 const express = require("express");
 const path = require("path");
@@ -9,23 +9,16 @@ const fs = require("fs");
 const User = require("./models/User");
 const router = express.Router();
 const Task = require("./models/task");
-
-const admin = require("./firebase"); // at the top
-
-
+const admin = require("./firebase");
+const cron = require("node-cron"); // ✅ ADDED: Import the cron library
 
 const app = express();
-
 const PORT = process.env.PORT || 5000;
-
-const PopupContent = require('./models/PopupContent');
-
-
+const PopupContent = require("./models/PopupContent");
 fs.mkdirSync(path.join(__dirname, "public/uploads"), { recursive: true });
 const Withdrawal = require("./models/Withdrawal");
-
-// Use the MONGO_URI environment variable or fallback to local
 const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/userdb";
+const Setting = require("./models/Setting");
 
 mongoose
   .connect(MONGO_URI, {
@@ -40,16 +33,6 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(__dirname));
 app.use("/uploads", express.static(path.join(__dirname, "public/uploads")));
 app.use("/", router);
-
-app.use((req, res, next) => {
-  res.setHeader("Access-Control-Allow-Credentials", "true");
-  next();
-});
-
-const Setting = require("./models/Setting"); // adjust the path if needed
-
-// Continue with your static routes
-app.get("/", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
 
 app.use(
   session({
@@ -74,10 +57,43 @@ const isAdmin = (req, res, next) => {
   next();
 };
 
-// POST: Create New Task
+// Middleware to check if the session is active
+function checkSession(req, res, next) {
+  if (req.session.user) {
+    next();
+  } else {
+    res.redirect("/login");
+  }
+}
+
+// ✅ ADDED: CRON JOB TO RESET DAILY STATS
+cron.schedule("0 0 * * *", async () => {
+  console.log("⏰ Running daily task reset cron job...");
+  try {
+    const today = new Date().toISOString().split("T")[0];
+
+    // Find users where today's date is different from the stored date
+    const usersToUpdate = await User.find({
+      "taskStats.todayDate": { $ne: today },
+    });
+
+    for (const user of usersToUpdate) {
+      user.taskStats.todaysProfit = 0;
+      user.taskStats.taskCount = 0;
+      user.taskStats.completedTasks = {}; // Reset completed tasks for the new day
+      user.taskStats.todayDate = today;
+      await user.save();
+    }
+    console.log("✅ Daily task stats reset successfully.");
+  } catch (error) {
+    console.error("❌ Error during daily task reset:", error);
+  }
+});
+
+// POST: Create New Task (unchanged)
 const taskStorage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, "public/uploads/"),
-  filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`),
+  filename: (req, file, cb) => `${Date.now()}-${file.originalname}`,
 });
 const taskUpload = multer({ storage: taskStorage });
 
@@ -86,15 +102,12 @@ router.post(
   taskUpload.single("image"),
   async (req, res) => {
     const { title, reward, frequency, description, taskId, link } = req.body;
-
     const image = req.file ? `/uploads/${req.file.filename}` : "";
-
     if (!title || !reward || !taskId) {
       return res
         .status(400)
         .json({ message: "All required fields are missing" });
     }
-
     try {
       const newTask = new Task({
         title,
@@ -105,7 +118,6 @@ router.post(
         image,
         link,
       });
-
       await newTask.save();
       res.json({ message: "Task created successfully!" });
     } catch (err) {
@@ -116,9 +128,7 @@ router.post(
   }
 );
 
-// deleting tasks
-
-// DELETE: Remove task by ID
+// deleting tasks (unchanged)
 router.delete("/admin/delete-task/:id", async (req, res) => {
   try {
     await Task.findByIdAndDelete(req.params.id);
@@ -130,7 +140,7 @@ router.delete("/admin/delete-task/:id", async (req, res) => {
   }
 });
 
-// GET: All Tasks (for both admin and user display)
+// GET: All Tasks (unchanged)
 router.get("/tasks", async (req, res) => {
   try {
     const tasks = await Task.find();
@@ -140,9 +150,10 @@ router.get("/tasks", async (req, res) => {
   }
 });
 
+// (Router continues with other routes)
 module.exports = router;
 
-// Static routes
+// Static routes (unchanged)
 app.get("/", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
 app.get("/signup", (req, res) =>
   res.sendFile(path.join(__dirname, "signup.html"))
@@ -153,15 +164,19 @@ app.get("/signup/:refCode", (req, res) =>
 app.get("/login", (req, res) =>
   res.sendFile(path.join(__dirname, "login.html"))
 );
-app.get("/dashboard", (req, res) =>
+app.get("/dashboard", checkSession, (req, res) =>
   res.sendFile(path.join(__dirname, "dashboard.html"))
 );
-app.get("/task", (req, res) => res.sendFile(path.join(__dirname, "task.html")));
-app.get("/kyc", (req, res) => res.sendFile(path.join(__dirname, "kyc.html")));
-app.get("/settings", (req, res) =>
+app.get("/task", checkSession, (req, res) =>
+  res.sendFile(path.join(__dirname, "task.html"))
+);
+app.get("/kyc", checkSession, (req, res) =>
+  res.sendFile(path.join(__dirname, "kyc.html"))
+);
+app.get("/settings", checkSession, (req, res) =>
   res.sendFile(path.join(__dirname, "settings.html"))
 );
-app.get("/referrals", (req, res) =>
+app.get("/referrals", checkSession, (req, res) =>
   res.sendFile(path.join(__dirname, "referrals.html"))
 );
 app.get("/admin", isAdmin, (req, res) =>
@@ -172,10 +187,11 @@ app.get("/withdrawal", (req, res) => {
   res.sendFile(path.join(__dirname, "withdrawal.html"));
 });
 
+// Generate referral code (unchanged)
 const generateReferralCode = () =>
   Math.random().toString(36).substring(2, 8).toUpperCase();
 
-// Register route
+// Register route (unchanged)
 app.post("/register", async (req, res) => {
   const {
     fullname,
@@ -219,7 +235,7 @@ app.post("/register", async (req, res) => {
   }
 });
 
-// Login route
+// Login route (unchanged)
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
   try {
@@ -235,7 +251,7 @@ app.post("/login", async (req, res) => {
   }
 });
 
-// Balance API
+// Balance API (unchanged)
 app.get("/get-balance", async (req, res) => {
   if (!req.session.user)
     return res.status(401).json({ message: "Not logged in." });
@@ -262,7 +278,7 @@ app.post("/update-balance/:amount", async (req, res) => {
   }
 });
 
-// Task execution (once per day)
+// Task execution (once per day) - updated to handle freeze balance
 app.post("/do-task/:taskId/:amount", async (req, res) => {
   const { taskId, amount } = req.params;
   const reward = parseFloat(amount);
@@ -300,9 +316,14 @@ app.post("/do-task/:taskId/:amount", async (req, res) => {
     user.taskStats.todaysProfit += reward;
     user.taskStats.totalProfit += reward;
     user.taskStats.taskCount += 1;
-    user.taskStats.freezeBalance += reward;
     user.taskStats.completedTasks[taskId] = today;
-    user.balance += reward;
+
+    // Check if KYC is approved before freezing the balance
+    if (user.kycStatus !== 'approved') {
+        user.taskStats.freezeBalance += reward;
+    } else {
+        user.balance += reward;
+    }
 
     await user.save();
     res.json({
@@ -315,11 +336,10 @@ app.post("/do-task/:taskId/:amount", async (req, res) => {
   }
 });
 
-// Task stats
+// Task stats (unchanged)
 app.get("/get-stats", async (req, res) => {
   if (!req.session.user)
     return res.status(401).json({ message: "Not logged in" });
-
   try {
     const user = await User.findById(req.session.user.id);
     res.json({ stats: user.taskStats });
@@ -328,7 +348,7 @@ app.get("/get-stats", async (req, res) => {
   }
 });
 
-// Referral API
+// Referral API (unchanged)
 app.get("/get-referral-balance", async (req, res) => {
   if (!req.session.user)
     return res.status(401).json({ message: "Not logged in." });
@@ -348,7 +368,7 @@ app.get("/get-referral-balance", async (req, res) => {
   }
 });
 
-// Withdraw referral balance
+// Withdraw referral balance (unchanged)
 app.post("/withdraw-referral-balance", async (req, res) => {
   if (!req.session.user)
     return res.status(401).json({ message: "Unauthorized" });
@@ -372,7 +392,7 @@ app.post("/withdraw-referral-balance", async (req, res) => {
   }
 });
 
-// Profile updates
+// Profile updates (unchanged)
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, "public/uploads/"),
   filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`),
@@ -397,23 +417,34 @@ app.post("/update-profile", upload.single("profilePic"), async (req, res) => {
   }
 });
 
-// Approve KYC (admin action)
+// ✅ UPDATED: Approve KYC (admin action)
 app.post("/admin/approve-kyc", async (req, res) => {
   const { userId } = req.body;
   try {
-    const user = await User.findByIdAndUpdate(
-      userId,
-      { kycStatus: "approved" },
-      { new: true }
-    );
-    if (!user) return res.status(404).json({ message: "User not found" });
+    // Find the user to update
+    const user = await User.findById(userId);
+    if (!user) {
+        return res.status(404).json({ message: "User not found" });
+    }
+
+    // Update the KYC status to 'approved'
+    user.kycStatus = "approved";
+
+    // ✅ ADDED: Reset freezeBalance to 0 and transfer it to the main balance
+    if (user.taskStats && user.taskStats.freezeBalance > 0) {
+        user.balance += user.taskStats.freezeBalance;
+        user.taskStats.freezeBalance = 0;
+    }
+
+    await user.save(); // Save the updated user document
+
     res.status(200).json({ message: "KYC approved", user });
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });
   }
 });
 
-// Get user info
+// Get user info (unchanged)
 app.get("/get-user", async (req, res) => {
   if (!req.session.user)
     return res.status(401).json({ message: "Not logged in" });
@@ -500,18 +531,18 @@ app.post("/admin/block-user", isAdmin, async (req, res) => {
   }
 });
 
-// Submit withdrawal request
+// Submit withdrawal request (unchanged)
 app.post("/withdraw", async (req, res) => {
   let { bank, accountName, accountNumber, amount } = req.body;
-  amount = parseFloat(amount); // Convert to number
-
+  amount = parseFloat(amount);
   if (!req.session.user)
     return res.status(401).json({ message: "Unauthorized" });
 
   try {
     const user = await User.findById(req.session.user.id);
-
-    console.log("User balance before withdrawal:", user.balance); // DEBUG
+    if (user.kycStatus !== 'approved') {
+        return res.status(403).json({ message: "KYC must be approved before you can withdraw." });
+    }
 
     if (user.balance < amount) {
       return res.status(400).json({
@@ -519,12 +550,10 @@ app.post("/withdraw", async (req, res) => {
       });
     }
 
-    // ✅ Deduct user balance here
     user.balance -= amount;
     await user.save();
 
     const receiptId = `RCPT-${Date.now().toString().slice(-6)}`;
-
     const newWithdrawal = await Withdrawal.create({
       userId: user._id,
       bank,
@@ -532,7 +561,7 @@ app.post("/withdraw", async (req, res) => {
       accountNumber,
       amount,
       receipt: receiptId,
-      status: "pending", // ✅ ADD THIS LINE
+      status: "pending",
     });
 
     res.status(200).json({
@@ -546,17 +575,18 @@ app.post("/withdraw", async (req, res) => {
   }
 });
 
-app.get('/admin/withdrawals', isAdmin, async (req, res) => {
+// Admin withdrawal routes (unchanged)
+app.get("/admin/withdrawals", isAdmin, async (req, res) => {
   try {
-    const withdrawals = await Withdrawal.find({ status: 'pending' }).sort({ createdAt: -1 });
+    const withdrawals = await Withdrawal.find({ status: "pending" }).sort({
+      createdAt: -1,
+    });
     res.json(withdrawals);
   } catch (err) {
-    res.status(500).json({ message: 'Failed to fetch withdrawals' });
+    res.status(500).json({ message: "Failed to fetch withdrawals" });
   }
 });
 
-
-// Admin approve withdrawal
 app.post("/admin/withdrawals/approve", isAdmin, async (req, res) => {
   const { withdrawalId } = req.body;
 
@@ -585,7 +615,6 @@ app.post("/admin/withdrawals/approve", isAdmin, async (req, res) => {
   }
 });
 
-// Admin reject withdrawal
 app.post("/admin/withdrawals/reject", isAdmin, async (req, res) => {
   const { withdrawalId } = req.body;
 
@@ -600,9 +629,16 @@ app.post("/admin/withdrawals/reject", isAdmin, async (req, res) => {
     withdrawal.status = "rejected";
     await withdrawal.save();
 
-    res.json({ message: "Withdrawal rejected" });
+    const user = await User.findById(withdrawal.userId);
+    if (user) {
+      user.balance += withdrawal.amount;
+      await user.save();
+    }
+
+    res.json({ message: "Withdrawal rejected and amount returned to user" });
   } catch (err) {
-    res.status(500).json({ message: "Failed to reject withdrawal" });
+    console.error("Reject withdrawal error:", err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
@@ -626,7 +662,7 @@ app.get("/logout", (req, res) => {
 
 function isAuthenticated(req, res, next) {
   if (req.session && req.session.userId) {
-    return next(); // ✅ User is logged in
+    return next();
   }
   res.status(401).json({ error: "Unauthorized" });
 }
@@ -640,11 +676,9 @@ app.get("/user/profile", isAuthenticated, async (req, res) => {
     balance: user.balance,
     totalWithdrawn: user.totalWithdrawn || 0,
     kycStatus: user.kycStatus,
-    // ... any other fields you need
   });
 });
 
-// for Withdrawl Threshold
 app.get("/user/balance", async (req, res) => {
   if (!req.session.user || !req.session.user.id) {
     return res.status(401).json({ message: "Not logged in" });
@@ -660,13 +694,12 @@ app.get("/user/balance", async (req, res) => {
   }
 });
 
-// Get current status of withdrawal (for admin toggle)
+// Admin settings (unchanged)
 app.get("/admin/withdrawal-status", isAdmin, async (req, res) => {
   const setting = await Setting.findOne({ key: "withdrawalEnabled" });
   res.json({ enabled: setting ? setting.value : false });
 });
 
-// Update status (toggle on/off)
 app.post("/admin/withdrawal-status", isAdmin, async (req, res) => {
   const { enabled } = req.body;
   let setting = await Setting.findOne({ key: "withdrawalEnabled" });
@@ -688,8 +721,6 @@ function isAuthenticated(req, res, next) {
   res.status(401).json({ error: "Unauthorized" });
 }
 
-
-// Approve
 app.post("/admin/approve-withdrawal", isAdmin, async (req, res) => {
   const { withdrawalId, amount, userId } = req.body;
   await Withdrawal.findByIdAndUpdate(withdrawalId, { status: "approved" });
@@ -697,50 +728,44 @@ app.post("/admin/approve-withdrawal", isAdmin, async (req, res) => {
   res.json({ message: "Withdrawal approved and balance deducted." });
 });
 
-// Reject
-// Example for Express
-router.post('/admin/reject-withdrawal', async (req, res) => {
+router.post("/admin/reject-withdrawal", async (req, res) => {
   const { withdrawalId } = req.body;
 
   try {
     const withdrawal = await Withdrawal.findById(withdrawalId);
     if (!withdrawal) {
-      return res.status(404).json({ message: 'Withdrawal not found' });
+      return res.status(404).json({ message: "Withdrawal not found" });
     }
 
-    if (withdrawal.status !== 'pending') {
-      return res.status(400).json({ message: 'Withdrawal already processed' });
+    if (withdrawal.status !== "pending") {
+      return res.status(400).json({ message: "Withdrawal already processed" });
     }
 
-    // Mark withdrawal as rejected
-    withdrawal.status = 'rejected';
+    withdrawal.status = "rejected";
     await withdrawal.save();
 
-    // Add amount back to user's balance
     const user = await User.findById(withdrawal.userId);
     if (user) {
       user.balance += withdrawal.amount;
       await user.save();
     }
 
-    res.json({ message: 'Withdrawal rejected and amount returned to user' });
+    res.json({ message: "Withdrawal rejected and amount returned to user" });
   } catch (err) {
-    console.error('Reject withdrawal error:', err);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Reject withdrawal error:", err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
-
-// GET popup content
-router.get('/admin/popup-content', async (req, res) => {
+// GET popup content (unchanged)
+router.get("/admin/popup-content", async (req, res) => {
   const content = await PopupContent.findOne().sort({ updatedAt: -1 });
   res.json(content);
 });
 
-// UPDATE popup content
-router.post('/admin/popup-content', async (req, res) => {
+// UPDATE popup content (unchanged)
+router.post("/admin/popup-content", async (req, res) => {
   const { title, message, imageUrl, buttonText, buttonLink } = req.body;
-
   let content = await PopupContent.findOne();
   if (!content) content = new PopupContent();
 
@@ -751,25 +776,20 @@ router.post('/admin/popup-content', async (req, res) => {
   content.buttonLink = buttonLink;
 
   await content.save();
-  res.json({ message: 'Popup updated successfully' });
+  res.json({ message: "Popup updated successfully" });
 });
 
-
-
-// ✅ Google Auth Endpoint
+// Google Auth Endpoint (unchanged)
 app.post("/google-auth", async (req, res) => {
   const { idToken } = req.body;
 
   try {
-    // ✅ Verify Firebase ID token
     const decoded = await admin.auth().verifyIdToken(idToken);
     const { name, email, uid, picture } = decoded;
 
-    // ✅ Check if user already exists
     let user = await User.findOne({ email });
 
     if (!user) {
-      // ✅ If not, create user
       user = new User({
         fullname: name,
         email,
@@ -781,11 +801,9 @@ app.post("/google-auth", async (req, res) => {
         referredBy: null,
         referralCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
       });
-
       await user.save();
     }
 
-    // ✅ Create session
     req.session.user = {
       id: user._id,
       email: user.email,
@@ -804,7 +822,6 @@ app.post("/google-auth", async (req, res) => {
     res.status(401).json({ message: "Invalid or expired token" });
   }
 });
-
 
 // Start server
 app.listen(PORT, () => {

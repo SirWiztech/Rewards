@@ -38,7 +38,7 @@ function fetchReferralData() {
 
       const referralInput = document.getElementById("copyInput");
       if (referralInput && data.referralCode) {
-        referralInput.value = `https://rewards-0tfq.onrender.com/signup/${data.referralCode}`;
+        referralInput.value = `https://rewards-ng.onrender.com/signup/${data.referralCode}`;
 
       }
 
